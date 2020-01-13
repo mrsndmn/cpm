@@ -1,16 +1,19 @@
 #!/usr/bin/env perl
 use 5.28.2;
 use strict;
-use FindBin;
-use Config;
+
 use File::Path qw/remove_tree make_path/;
+use File::Spec;
+
 use CPAN::Meta::Requirements;
 use Getopt::Long ();
-use Cwd;
+use Cwd ();
+
 use JSON::PP;
 
 my $bin_cpm = '/usr/bin/cpm';
 my $build_dir = "build/";
+my $cpanfile_snapshot = 'cpanfile.snapshot';
 
 Getopt::Long::GetOptions(
     "f|force" => \my $force,
@@ -29,28 +32,34 @@ $config_json ||= ".cpm_bundler.json";
 if (-f $config_json) {
     open(my $json_cfg_fh, '<', $config_json) or die "Can't open `$config_json`: $!";
     my $json;
-    while(<$json_cfg_fh>) {
-        chomp;
-        $json .= $_;
-    }
+    $json .= $_ while(<$json_cfg_fh>);
+
     close($json_cfg_fh);
     my $cfg = JSON::PP->new->relaxed([])->decode($json);
     $ENV{$_} = $cfg->{ENV}->{$_} . (exists $ENV{$_} ? ':' . $ENV{$_} : '') for keys %{$cfg->{ENV}};
 }
 
-$bin_cpm = $path_cpm . '/cpm' if $path_cpm;
+$bin_cpm = File::Spec->join($path_cpm, '/cpm') if $path_cpm;
 die "dev_cpm required cpm_path option" if $dev_cpm && ! $path_cpm;
 die "cpm `$bin_cpm` not found" unless -f $bin_cpm;
 
-my $lib_cpm = [$build_dir . '/local/lib/perl5'];
-eval "use lib '$build_dir/local/lib/perl5';";
+my $builddir_local_lib = File::Spec->join($build_dir, '/local/lib/perl5');
+
+my @lib_cpm = ($builddir_local_lib);
+push @INC, $builddir_local_lib;
+
 if ($dev_cpm && $path_cpm) {
-    push @$lib_cpm, ($path_cpm . '../../lib', $path_cpm . '../../local/lib/perl5');
+    my @dev_cpm_repo_lib = map {
+            File::Spec->join($path_cpm, $_)
+        } ('../../lib', '../../local/lib/perl5');
+    push @lib_cpm, @dev_cpm_repo_lib;
 }
 
+my $path_cpanfile = File::Spec->join($build_dir, '/cpanfile');
+
 make_path($build_dir) unless -d $build_dir;
-unless (-f $build_dir . '/cpanfile') {
-    open(my $cpanfile, '>', $build_dir . '/cpanfile') or die "Can't create cpanfile for builder: $!";
+unless (-f $path_cpanfile) {
+    open(my $cpanfile, '>', $path_cpanfile) or die "Can't create cpanfile for builder: $!";
     print {$cpanfile} <<CPANFILE;
 on develop => sub {
     requires 'IO::Uncompress::Gunzip', '0';
@@ -69,7 +78,10 @@ CPANFILE
 
 sub cpm {
     my $prefix = shift;
-    my $cmd = join(" ", $ENV{_}, join(" ", map {"-I $_"} @$lib_cpm), $bin_cpm, join (' ', @_));
+
+    my $this_perl = $^X;
+    my @perl_includes = map {"-I $_"} @lib_cpm;
+    my $cmd = join(" ", $this_perl, @perl_includes, $bin_cpm, @_);
     warn "\e[1;31m$prefix\e[m " . $cmd . "\n";
     return system($cmd);
 }
@@ -77,7 +89,7 @@ sub cpm {
 sub gen_snapshot {
     warn "\e[1;31mGenerate snapshot\e[m\n";
     require 'Carton/Snapshot.pm';
-    my $snapshot = Carton::Snapshot->new(path => "cpanfile.snapshot");
+    my $snapshot = Carton::Snapshot->new(path => $cpanfile_snapshot);
     my $no_exclude = CPAN::Meta::Requirements->new;
     $snapshot->find_installs("local", $no_exclude);
     $snapshot->save;
@@ -88,13 +100,13 @@ my @params = ("install");
 my $resolver = '';
 
 if ($restore) {
-    die "Unexists cpanfile.snapshot" unless -f "cpanfile.snapshot";
+    die "$cpanfile_snapshot not exist" unless -f $cpanfile_snapshot;
     remove_tree 'local';
     push @params, ("--resolver", 'snapshot')
 }
 
 if ($force) {
-    unlink 'cpanfile.snapshot' if -f 'cpanfile.snapshot';
+    unlink $cpanfile_snapshot if -f $cpanfile_snapshot;
     push @params, "--reinstall";
 }
 
@@ -102,7 +114,7 @@ if ($rebuild){
     push @params, "--no-prebuilt", "--reinstall";
 }
 
-my $dir = getcwd;
+my $dir = Cwd::getcwd();
 
 chdir $build_dir;
 die "cpm return code not 0" if cpm "Build devel package", "install", "--with-develop";
