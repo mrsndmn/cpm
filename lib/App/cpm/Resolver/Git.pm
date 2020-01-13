@@ -21,7 +21,19 @@ sub fetch_rev {
 
 sub resolve {
     my ($self, $job) = @_;
-    return unless $job->{source} && $job->{source} eq 'git';
+
+    my $is_git_source = ($job->{source} && $job->{source} eq 'git');
+
+    my $job_options = $job->{options};
+    if (exists $job_options->{git} && !$is_git_source) {
+        $job->{uri} = $job_options->{git} if exists $job_options->{git};
+        $job->{ref} = $job_options->{ref} if exists $job_options->{ref};
+        $job->{provides} = [{package => $job->{package}}];
+        $job->{source} = 'git';
+        $is_git_source = 1;
+    }
+
+    return {error => 'Not a git dependency'} unless $is_git_source;
 
     my ($rev, $version);
     if ($job->{ref}) {
@@ -29,6 +41,8 @@ sub resolve {
     } else {
         my %tags;
         my ($uri) = App::cpm::Git->split_uri($job->{uri});
+
+        # todo for all the `ls-remote` commands: lookup cpm cache before remote lookup
         my $out = `git ls-remote --tags $uri "*.*"`;
         while ($out =~ /^(\p{IsXDigit}{40})\s+refs\/tags\/(.+?)(\^\{\})?$/mg) {
             my ($r, $v, $o) = ($1, $2, $3);
