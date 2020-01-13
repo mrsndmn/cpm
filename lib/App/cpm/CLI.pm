@@ -472,14 +472,24 @@ sub load_cpanfile {
     my $reqs = $prereqs->merged_requirements(\@phase, \@type)->as_string_hash;
     my (@package, @reinstall);
     for my $package (sort keys %$reqs) {
-        my $option = $cpanfile->options_for_module($package) || {};
+        my $module_option = $cpanfile->options_for_module($package) || {};
+
+        my %req_options;
+        if(exists $module_option->{git}) {
+            $req_options{options} = {
+                git => $module_option->{git},
+                ($module_option->{ref} ? (ref => $module_option->{ref}) : ())
+            }
+        }
+
         my $req = {
             package => $package,
             version_range => $reqs->{$package},
-            dev => $option->{dev},
+            dev => $module_option->{dev},
+            %req_options,
         };
-        if ($self->{reinstall} || $option->{git}) {
-            $req->{options} = {git => $option->{git}, ($option->{ref} ? (ref => $option->{ref}) : ())} if $option->{git};
+
+        if ($self->{reinstall} || ($module_option->{git} && $module_option->{ref} && $module_option->{ref} !~ /^[0-9a-f]+$/)) {
             push @reinstall, $req;
         } else {
             push @package, $req;
