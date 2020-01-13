@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Install deb packages
-        run: apt-get -qq update && apt-get -qq install -y unzip libdb-dev
+        run: apt-get -qq update && apt-get -qq install -y unzip libdb-dev git
       - name: perl -V
         run: perl -V
       - name: Install Dependencies
