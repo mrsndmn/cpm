@@ -24,7 +24,8 @@ sub _load {
     my $self = shift;
 
     my $cpanfile = $self->{cpanfile};
-    my $specs = $cpanfile->prereq_specs;
+    my @feature_identifiers = map {$_->identifier} $cpanfile->features;
+    my $specs = $cpanfile->prereqs_with(@feature_identifiers)->as_string_hash;
     my %package;
     for my $phase (keys %$specs) {
         for my $type (keys %{$specs->{$phase}}) {

@@ -24,15 +24,6 @@ sub resolve {
 
     my $is_git_source = ($job->{source} && $job->{source} eq 'git');
 
-    my $job_options = $job->{options};
-    if (exists $job_options->{git} && !$is_git_source) {
-        $job->{uri} = $job_options->{git} if exists $job_options->{git};
-        $job->{ref} = $job_options->{ref} if exists $job_options->{ref};
-        $job->{provides} = [{package => $job->{package}}];
-        $job->{source} = 'git';
-        $is_git_source = 1;
-    }
-
     return {error => 'Not a git dependency'} unless $is_git_source;
 
     my ($rev, $version);
