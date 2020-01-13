@@ -74,18 +74,28 @@ CPANFILE
     close($cpanfile);
 }
 
+sub _cpm {
+    my $start = time;
+    die "cpm return code not 0" if cpm(@_);
+    warn sprintf "cpm finished in %d seconds", $start
+}
+
+sub red_str {
+    return join "", "\e[1;31m", $_[0], "\e[m"
+}
+
 sub cpm {
     my $prefix = shift;
 
     my $this_perl = $^X;
     my @perl_includes = map {"-I $_"} @lib_cpm;
     my $cmd = join(" ", $this_perl, @perl_includes, $bin_cpm, @_);
-    warn "\e[1;31m$prefix\e[m " . $cmd . "\n";
+    warn red_str($prefix) . $cmd . "\n";
     return system($cmd);
 }
 
 sub gen_snapshot {
-    warn "\e[1;31mGenerate snapshot\e[m\n";
+    warn red_str("Generate snapshot") . "\n";
     require 'Carton/Snapshot.pm';
     my $snapshot = Carton::Snapshot->new(path => $cpanfile_snapshot);
     my $no_exclude = CPAN::Meta::Requirements->new;
@@ -115,25 +125,27 @@ if ($rebuild){
 my $dir = Cwd::getcwd();
 
 chdir $build_dir;
-die "cpm return code not 0" if cpm "Build devel package", "install", "--with-develop";
+my $time = time();
+_cpm "Build devel package", "install", "--with-develop";
+
 chdir $dir;
 if ($update or $install) {
     if ($update) {
         #remove_tree 'local';
-        #die "cpm return code not 0" if cpm "Build project", 'install', "--resolver", 'snapshot';
+        #_cpm "Build project", 'install', "--resolver", 'snapshot';
     }
-    die "cpm return code not 0" if cpm "Build project", @params, split(',', $update) , split(',', $install);
+    _cpm "Build project", @params, split(',', $update) , split(',', $install);
     gen_snapshot;
     if ($update) {
         remove_tree 'local';
-        die "cpm return code not 0" if cpm "Build project", 'install', "--resolver", 'snapshot';
+        _cpm "Build project", 'install', "--resolver", 'snapshot';
     }
 } else {
     if ($restore) {
         warn "Clean local";
         remove_tree 'local';
     }
-    die "cpm return code not 0" if cpm "Build project", @params;
+    _cpm "Build project", @params;
     gen_snapshot unless $restore;
 }
 
