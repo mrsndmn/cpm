@@ -30,6 +30,7 @@ $r = cpm_install '--cpanfile', $cpanfile, '--feature', 'foo';
 is $r->exit, 0;
 like $r->err, qr/DONE install Data-Section-Simple-/;
 
+my $osname = $^O;
 if( $osname eq 'MSWin32' ){
     like $r->err, qr/FAIL resolve Scalar-List-Utils-/;
 }
