@@ -49,10 +49,8 @@ my @lib_cpm = ($builddir_local_lib);
 push @INC, $builddir_local_lib;
 
 if ($dev_cpm && $path_cpm) {
-    my @dev_cpm_repo_lib = map {
-            File::Spec->join($path_cpm, $_)
-        } ('../../lib', '../../local/lib/perl5');
-    push @lib_cpm, @dev_cpm_repo_lib;
+    push @lib_cpm, File::Spec->join($path_cpm, '../../lib');
+    push @lib_cpm, File::Spec->join($path_cpm, '../../local/lib/perl5');
 }
 
 my $path_cpanfile = File::Spec->join($build_dir, '/cpanfile');
