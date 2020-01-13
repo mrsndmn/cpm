@@ -126,7 +126,6 @@ if ($rebuild){
 my $dir = Cwd::getcwd();
 
 chdir $build_dir;
-my $time = time();
 _cpm "Build devel package", "install", "--with-develop";
 
 chdir $dir;
