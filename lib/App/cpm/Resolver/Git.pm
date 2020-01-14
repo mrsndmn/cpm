@@ -22,9 +22,7 @@ sub fetch_rev {
 sub resolve {
     my ($self, $job) = @_;
 
-    my $is_git_source = ($job->{source} && $job->{source} eq 'git');
-
-    return {error => 'Not a git dependency'} unless $is_git_source;
+    return if !$job->{source} || $job->{source} ne 'git';
 
     my ($rev, $version);
     if ($job->{ref}) {

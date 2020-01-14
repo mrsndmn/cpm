@@ -11,10 +11,14 @@ sub new {
     my $cpanfile = $args{cpanfile} || Module::CPANfile->load($args{path});
     my $mirror = $args{mirror} || 'https://cpan.metacpan.org/';
     $mirror =~ s{/*$}{/};
+
+    my $features = $args{features} || [];
+
     my $self = bless {
         %args,
+        features => $features,
         cpanfile => $cpanfile,
-        mirror => $mirror,
+        mirror   => $mirror,
     }, $class;
     $self->_load;
     $self;
@@ -24,8 +28,8 @@ sub _load {
     my $self = shift;
 
     my $cpanfile = $self->{cpanfile};
-    my @feature_identifiers = map {$_->identifier} $cpanfile->features;
-    my $specs = $cpanfile->prereqs_with(@feature_identifiers)->as_string_hash;
+    my @feature_list = @{$self->{features}};
+    my $specs = $cpanfile->prereqs_with(@feature_list)->as_string_hash;
     my %package;
     for my $phase (keys %$specs) {
         for my $type (keys %{$specs->{$phase}}) {

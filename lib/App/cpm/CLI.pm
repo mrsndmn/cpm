@@ -499,7 +499,8 @@ sub load_cpanfile {
     require App::cpm::Resolver::CPANfile;
     my $resolver = App::cpm::Resolver::CPANfile->new(
         cpanfile => $cpanfile,
-        mirror => $self->{mirror},
+        mirror   => $self->{mirror},
+        features => $self->{feature},
     );
 
     (\@package, \@reinstall, $resolver);
